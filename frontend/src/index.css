@@ -81,21 +81,6 @@ body::before {
   z-index: 0;
 }
 
-/* Animated gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, oklch(76% 0.16 270), oklch(66% 0.22 270), oklch(70% 0.2 310));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  background-size: 200% 200%;
-  animation: gradientShift 4s ease infinite;
-}
-
-@keyframes gradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-}
-
 /* Scan line animation */
 @keyframes scanLine {
   0% { transform: translateY(-100%); }
@@ -135,13 +120,7 @@ body::before {
 }
 
 .shimmer {
-  background: linear-gradient(
-    90deg,
-    oklch(19% 0.02 270) 25%,
-    oklch(25% 0.03 270) 50%,
-    oklch(19% 0.02 270) 75%
-  );
-  background-size: 200% 100%;
+  background: oklch(19% 0.02 270);
   animation: shimmer 1.5s infinite;
 }
 
@@ -201,4 +180,33 @@ textarea:focus {
 
 .particle {
   animation: float var(--duration, 2s) ease-out var(--delay, 0s) infinite;
+}
+
+.doc-preview {
+  min-height: 260px;
+  max-height: 620px;
+  overflow: auto;
+  white-space: pre-wrap;
+  background: oklch(97% 0.01 260);
+  color: oklch(20% 0.02 260);
+  border: 1px solid oklch(84% 0.02 260);
+  border-radius: 8px;
+  padding: 2rem;
+  font-family: Georgia, serif;
+  font-size: 1rem;
+  line-height: 2;
+}
+
+.doc-mark {
+  background: oklch(88% 0.12 25 / 0.75);
+  color: oklch(25% 0.04 25);
+  border-bottom: 2px solid oklch(58% 0.2 25);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.1rem 0.15rem;
+}
+
+.doc-mark-active {
+  background: oklch(78% 0.16 25 / 0.9);
+  outline: 2px solid oklch(55% 0.22 25);
 }

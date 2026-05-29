@@ -1,3 +1,5 @@
 {
-  "el gato está roncando.|||el gato está durmiendo.": "entailment"
+  "el gato está roncando.|||el gato está durmiendo.": "entailment",
+  "los ingenieros finalizaron las pruebas del sistema de propulsión y calibraron los instrumentos ópticos de alta resolución.|||por su parte,": "neutral",
+  "la junta directiva aprobó por unanimidad el presupuesto anual para el departamento de desarrollo tecnológico.|||los fondos asignados permitirán duplicar la contratación de personal durante el próximo mes.": "contradiction"
 }

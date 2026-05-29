@@ -1,1 +1,42 @@
-{"LOW": [0.0, -0.19], "MEDIUM": [0.0, 0.0], "HIGH": [-0.199, -0.199]}
+{
+  "LOW": [
+    0.0,
+    -0.19
+  ],
+  "MEDIUM": [
+    0.0,
+    0.0
+  ],
+  "HIGH": [
+    -0.199,
+    -0.199
+  ],
+  "HIGH|same_paragraph|near|shared_entity|model": [
+    0.0,
+    0.0
+  ],
+  "HIGH|adjacent_paragraph|near|weak_topic|model": [
+    0.0,
+    0.0
+  ],
+  "HIGH|same_paragraph|near|shared_terms|model": [
+    0.0,
+    0.0
+  ],
+  "HIGH|same_paragraph|medium|shared_terms|model": [
+    0.35514,
+    0.0
+  ],
+  "HIGH|same_paragraph|medium|weak_topic|model": [
+    0.0,
+    -0.2692601568
+  ],
+  "HIGH|same_paragraph|near|weak_topic|model": [
+    0.0,
+    -0.3276
+  ],
+  "HIGH|same_paragraph|near|weak_topic|cache": [
+    0.0,
+    0.0
+  ]
+}
