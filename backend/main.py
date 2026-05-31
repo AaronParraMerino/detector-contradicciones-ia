@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import torch
 import torch.nn as nn
@@ -34,6 +35,16 @@ class SiameseLSTM(nn.Module):
 
 # 2. Initialize the app and global variables
 app = FastAPI(title="Detector de contradicciones")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Load resources
