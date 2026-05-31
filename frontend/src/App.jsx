@@ -53,17 +53,17 @@ function Spinner() {
 }
 
 const splitText = (input) => {
-  if (input.includes('.')) {
-    const parts = input.split('.');
-    return [parts[0].trim(), parts.slice(1).join('.').trim()];
+  if (input.includes(".")) {
+    const parts = input.split(".");
+    return [parts[0].trim(), parts.slice(1).join(".").trim()];
   }
-  if (input.includes(',')) {
-    const parts = input.split(',');
-    return [parts[0].trim(), parts.slice(1).join(',').trim()];
+  if (input.includes(",")) {
+    const parts = input.split(",");
+    return [parts[0].trim(), parts.slice(1).join(",").trim()];
   }
   const words = input.trim().split(/\s+/);
   const mid = Math.floor(words.length / 2);
-  return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
+  return [words.slice(0, mid).join(" "), words.slice(mid).join(" ")];
 };
 
 export default function App() {
@@ -72,6 +72,9 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [history, setHistory] = useState([]);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [correctLabel, setCorrectLabel] = useState("");
   const resultsRef = useRef(null);
 
   const detect = useCallback(async () => {
@@ -84,6 +87,8 @@ export default function App() {
     setLoading(true);
     setResult(null);
     setError(null);
+    setFeedbackSent(false);
+    setCorrectLabel("");
     try {
       const res = await fetch(`${API}/predict`, {
         method: "POST",
@@ -92,11 +97,8 @@ export default function App() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setResult(data);
-      setHistory((h) => [
-        { premise, hypothesis, ...data, ts: Date.now() },
-        ...h.slice(0, 9),
-      ]);
+      setResult({ premise, hypothesis, ...data });
+      setHistory((h) => [{ premise, hypothesis, ...data, ts: Date.now() }, ...h.slice(0, 9)]);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
     } catch (e) {
       setError(e.message);
@@ -104,6 +106,35 @@ export default function App() {
       setLoading(false);
     }
   }, [text]);
+
+  const sendFeedback = useCallback(
+    async (accepted) => {
+      if (!result) return;
+      setFeedbackLoading(true);
+      try {
+        const payload = {
+          premise: result.premise,
+          hypothesis: result.hypothesis,
+          prediction: result.prediction,
+          confidence: result.confidence,
+          correct_label: accepted ? result.prediction : correctLabel,
+        };
+
+        const res = await fetch(`${API}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setFeedbackSent(true);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setFeedbackLoading(false);
+      }
+    },
+    [result, correctLabel],
+  );
 
   const labelKey = result?.prediction?.toLowerCase();
   const meta = LABEL_META[labelKey] ?? LABEL_META.neutral;
@@ -159,9 +190,6 @@ export default function App() {
                 }}
               />
             </div>
-            <p className="text-xs text-white/30 pt-1">
-              Separa la premisa y la hipótesis con un punto (.) o una coma (,).
-            </p>
           </div>
 
           <button
@@ -209,6 +237,9 @@ export default function App() {
                   <span className="text-3xl">{meta.icon}</span>
                   <div>
                     <span className={`px-3 py-1 rounded-full text-sm font-bold ${meta.badgeClass}`}>{meta.label}</span>
+                    {result.source === "cache" && (
+                      <span className="ml-2 text-xs text-white/40 font-mono">· caché humano</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -221,6 +252,73 @@ export default function App() {
                 <div className="space-y-3">
                   <ScoreBar label={meta.label} score={result.confidence} color={meta.barColor} />
                 </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            {!feedbackSent ? (
+              <div className="space-y-3 pt-2 border-t" style={{ borderColor: "oklch(30% 0.025 270 / 0.4)" }}>
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/40">
+                  ¿Es correcto este resultado?
+                </p>
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => sendFeedback(true)}
+                    disabled={feedbackLoading}
+                    className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-95 disabled:opacity-40"
+                    style={{
+                      background: "oklch(70% 0.2 145 / 0.15)",
+                      border: "1px solid oklch(70% 0.2 145 / 0.4)",
+                      color: "oklch(75% 0.18 145)",
+                    }}
+                  >
+                    {feedbackLoading ? <Spinner /> : "👍 Correcto"}
+                  </button>
+                  <button
+                    onClick={() => sendFeedback(false)}
+                    disabled={feedbackLoading || !correctLabel}
+                    className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all duration-200 active:scale-95 disabled:opacity-40"
+                    style={{
+                      background: "oklch(65% 0.25 25 / 0.15)",
+                      border: "1px solid oklch(65% 0.25 25 / 0.4)",
+                      color: "oklch(75% 0.22 25)",
+                    }}
+                  >
+                    {feedbackLoading ? <Spinner /> : "👎 Incorrecto (Enviar)"}
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="correct-label" className="text-xs text-white/40">
+                    Etiqueta correcta (seleccionar para corregir):
+                  </label>
+                  <select
+                    id="correct-label"
+                    value={correctLabel}
+                    onChange={(e) => setCorrectLabel(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm"
+                    style={{
+                      background: "oklch(19% 0.02 270)",
+                      border: "1px solid oklch(30% 0.025 270 / 0.6)",
+                      color: "oklch(92% 0.01 270)",
+                    }}
+                  >
+                    <option value="">— Seleccionar —</option>
+                    <option value="contradiction">Contradicción</option>
+                    <option value="not_contradiction">No Contradicción</option>
+                    <option value="neutral">Neutral</option>
+                  </select>
+                </div>
+              </div>
+            ) : (
+              <div
+                className="animate-fade-in-up text-sm px-4 py-3 rounded-xl flex items-center gap-2"
+                style={{
+                  background: "oklch(58% 0.26 270 / 0.12)",
+                  border: "1px solid oklch(58% 0.26 270 / 0.3)",
+                  color: "oklch(76% 0.16 270)",
+                }}
+              >
+                ✅ Feedback enviado y almacenado.
               </div>
             )}
           </div>
@@ -239,6 +337,8 @@ export default function App() {
                     onClick={() => {
                       setText(`${h.premise}. ${h.hypothesis}`);
                       setResult(h);
+                      setFeedbackSent(false);
+                      setCorrectLabel("");
                     }}
                     className="w-full text-left glass rounded-xl px-4 py-3 flex items-center gap-3 group transition-all duration-200 hover:border-white/20"
                   >

@@ -1,10 +1,13 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import torch
 import torch.nn as nn
 import json
 import re
+import os
+import pandas as pd
+from collections import Counter
 
 # 1. Define the exact same architecture
 class SiameseLSTM(nn.Module):
@@ -66,10 +69,78 @@ class PredictionRequest(BaseModel):
     premise: str
     hypothesis: str
 
+class FeedbackRequest(BaseModel):
+    premise: str
+    hypothesis: str
+    prediction: str
+    correct_label: str
+    confidence: float
+
+def save_feedback(data: dict):
+    feedback_file_json = "feedback.json"
+    feedback_file_parquet = "feedback.parquet"
+    
+    # Save to JSON
+    if os.path.exists(feedback_file_json):
+        with open(feedback_file_json, "r") as f:
+            try:
+                records = json.load(f)
+            except json.JSONDecodeError:
+                records = []
+    else:
+        records = []
+    
+    records.append(data)
+    with open(feedback_file_json, "w") as f:
+        json.dump(records, f, indent=4)
+        
+    # Save to Parquet
+    try:
+        df = pd.DataFrame(records)
+        df.to_parquet(feedback_file_parquet, index=False)
+    except Exception as e:
+        print(f"Error saving parquet: {e}")
+
+def check_cache(premise: str, hypothesis: str):
+    feedback_file_json = "feedback.json"
+    if not os.path.exists(feedback_file_json):
+        return None
+        
+    try:
+        with open(feedback_file_json, "r") as f:
+            records = json.load(f)
+    except Exception:
+        return None
+            
+    p = premise.strip().lower()
+    h = hypothesis.strip().lower()
+    
+    matches = [r for r in records if r.get("premise", "").strip().lower() == p and 
+                                     r.get("hypothesis", "").strip().lower() == h]
+    
+    labels = [r.get("correct_label") for r in matches if r.get("correct_label")]
+    if not labels:
+        return None
+        
+    counter = Counter(labels)
+    most_common_label, count = counter.most_common(1)[0]
+    
+    if count >= 2:
+        return most_common_label
+    return None
+
 # 5. Create the API Endpoint
 @app.post("/predict")
 async def predict_contradiction(req: PredictionRequest):
     try:
+        cached_label = check_cache(req.premise, req.hypothesis)
+        if cached_label:
+            return {
+                "prediction": cached_label,
+                "confidence": 1.0,
+                "source": "cache"
+            }
+
         premise_tokens = tokenize(req.premise)
         hypo_tokens = tokenize(req.hypothesis)
         
@@ -86,7 +157,17 @@ async def predict_contradiction(req: PredictionRequest):
             
         return {
             "prediction": "contradiction" if is_contradiction else "not_contradiction",
-            "confidence": round(probability if is_contradiction else 1 - probability, 4)
+            "confidence": round(probability if is_contradiction else 1 - probability, 4),
+            "source": "model"
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/feedback")
+async def receive_feedback(req: FeedbackRequest, background_tasks: BackgroundTasks):
+    try:
+        data = req.dict()
+        background_tasks.add_task(save_feedback, data)
+        return {"message": "Feedback saved successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
