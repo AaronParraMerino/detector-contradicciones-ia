@@ -11,7 +11,6 @@ Aplicacion web para detectar posibles contradicciones entre dos fragmentos de te
 - Feedback: el usuario puede corregir predicciones; el backend guarda retroalimentacion en `feedback.json` y `feedback.parquet`.
 - Memoria simple: si una misma correccion aparece al menos 2 veces para la misma premisa e hipotesis, el backend responde desde cache.
 
-> Nota: esta rama no usa SQLite ni implementa Q-learning/RL formal. La parte de aprendizaje actual es retroalimentacion humana persistida y cache por votacion.
 
 ## Estructura principal
 
